@@ -1,0 +1,141 @@
+' {$STAMP BS2}
+' {$PBASIC 2.5}
+
+INPUT 0
+INPUT 1
+INPUT 2
+INPUT 3
+INPUT 4
+INPUT 5
+OUTPUT 15
+OUTPUT 14
+
+pulsecount VAR Byte
+time VAR Byte
+turn VAR Byte
+dist VAR Word
+
+ IR_det_pin  CON      8
+IR_detect  VAR      IN8
+
+active_low  CON      0
+active_high  CON     1
+
+IR_pulse  VAR      Word
+counter  VAR       Word
+index    VAR       Word
+key      VAR       Word
+
+start1:
+IF IN3 = 1 THEN
+GOTO waitforit
+ELSE
+GOTO start1
+ENDIF
+
+
+start:
+waitforit:
+
+ IF IN2 = 1 THEN
+    GOTO Automatic
+  ENDIF
+
+  PULSIN IR_det_pin, active_high, IR_pulse
+    IF IR_pulse <> 0 THEN continue
+   GOTO Straight
+   PAUSE 500
+  GOTO waitforit
+
+
+continue:
+    key = 0
+    index = 0
+    DO
+    PULSIN IR_det_pin, active_high, IR_pulse
+    IF (index = 0 AND IR_pulse > 1000) THEN key = 3      ' repeat (ignore)
+    IF (index = 8) THEN
+    IF (IR_pulse = 0) THEN key = 3                     ' repeat (ignore)
+    IF (IR_pulse < 300) THEN key = 1                   ' Prev and most other keys
+    IF (IR_pulse > 700) THEN key = 2                   ' reliably the 100+ key and usually 200+, 2, 3, 5 6
+   ENDIF
+   index = index + 1
+   IF (IR_pulse = 0) THEN dump
+
+  LOOP
+
+dump:
+  DEBUG "Key: ", DEC1 key, CR
+  PAUSE 500
+  IF key = 1 THEN
+  GOTO Left
+ELSEIF key = 2 THEN
+  GOTO Right
+ELSE
+  GOTO Straight
+ENDIF
+
+Left:
+HIGH 14
+LOW 15
+  FOR pulsecount = 1 TO 30
+    PULSOUT 4, 300
+    PAUSE 15
+    NEXT
+    GOTO CheckD
+
+Right:
+HIGH 14
+LOW 15
+  FOR pulsecount = 1 TO 30
+    PULSOUT 5,  1100
+    PAUSE 15
+    NEXT
+  GOTO CheckD
+
+Straight:
+HIGH 14
+LOW 15
+FOR pulsecount = 1 TO 35
+    PULSOUT 4, 300
+    PULSOUT 5, 1100
+    PAUSE 12
+NEXT
+GOTO CheckD
+
+CheckD:
+  PULSOUT 0, 5
+  PULSIN 0, 1, dist
+  dist = dist ** 2251
+  'DEBUG HOME, "Distance: ", DEC4 dist, " cm", CLS
+  PAUSE 100
+
+  IF (dist < 10) THEN
+    ' turn red led on
+    HIGH 15
+    LOW 14
+    FOR pulsecount = 1 TO 55
+      PULSOUT 4, 1100
+      PULSOUT 5, 300
+      PAUSE 12
+    NEXT
+    HIGH 14
+    LOW 15
+    ENDIF
+  GOTO Start
+
+Automatic:
+  PAUSE 5000
+  LOW 15
+  HIGH 14
+  FOR pulsecount = 1 TO 350
+    PULSOUT 4, 300
+    PULSOUT 5, 1100
+    PAUSE 15
+  NEXT
+
+  FOR pulsecount = 1 TO 300
+    PULSOUT 4, 1100
+    PULSOUT 5, 300
+    PAUSE 15
+  NEXT
